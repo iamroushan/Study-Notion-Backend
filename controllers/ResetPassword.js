@@ -1,5 +1,6 @@
 const User= require("../models/User")
 const mailSender = require("../utils/mailSender")
+const bcrypt = require("bcrypt")
 
 
 // resetPasswordToken
@@ -43,7 +44,7 @@ exports.resetPasswordToken = async(req,res)=>{
     } 
     catch (error) {
         console.log(error);
-        return res.statu(500).json({
+        return res.status(500).json({
             success: false,
             message: "Something went wrong while sending reset password mail"
         })
@@ -53,3 +54,59 @@ exports.resetPasswordToken = async(req,res)=>{
 
 
 // resetPassword
+exports.resetPassword = async(req,res)=>{
+    try {
+        // data fetch
+        const {password, confirmPassword, token} = req.body
+    
+        // validation
+        if(password !== confirmPassword){
+            return res.json({
+                success: false,
+                message: "Password not matching"
+            })
+        }
+    
+        // get user details from db using token
+        const userDetails = await User.findOne({token: token})
+    
+        // if no entry- invalid token
+        if(!userDetails){
+            return res.json({
+                success: false,
+                message: "reset password token is invalid"
+            })
+        }
+    
+        // token time check
+        if(userDetails.resetPasswordExpires < Date.now()){
+            return res.json({
+                success: false,
+                message: "Token time is expired, please regenrate your token"
+            })
+        }
+    
+        // hash password
+        const hashedPassword = await bcrypt.hash(password,10)    
+    
+        // password update
+        await User.findOneAndUpdate(
+            {token: token},
+            {password: hashedPassword},
+            {new: true}
+        )
+    
+        // return response
+        return res.status(200).json({
+            success: true,
+            message: "Password reset successfull"
+        })
+    } 
+    catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success: false,
+            message: "Error during the password reseting mail"
+        })    
+    }
+}
