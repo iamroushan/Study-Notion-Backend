@@ -3,6 +3,7 @@ const OTP= require("../models/OTP")
 const otpGenerator= require("otp-generator")
 const bcrypt= require("bcrypt")
 const jwt = require("jsonwebtoken")
+const mailSender = require("../utils/mailSender")
 require("dotenv").config()
 
 
@@ -231,14 +232,84 @@ exports.login =async (req,res)=>{
     }
 }
 
-// changePassword
+// controller for changePassword
 // TODO: homework
 exports.changePassword= async(req,res)=>{
-    // get data from req body
-    // get oldPassword, newPassword, confirmNewPassword
-    // validation
-
-    // update pwd in db
-    // send mail - password updated
-    // return response
+    try {
+        // get data from req body
+        const userDetails = await User.findById(req.user.id);
+    
+        // get oldPassword, newPassword, confirmNewPassword
+        const {oldPassword, newPassword, confirmNewPassword} = req.body
+    
+        // validation of old password
+        const isPasswordMatch = await bcrypt.compare(
+            oldPassword,
+            userDetails.password
+        )
+    
+        if(oldPassword === newPassword){
+            return res.status(400).json({
+                success: false,
+                message: "New password cannot be same as old password"
+            })
+        }
+    
+        if(!isPasswordMatch){
+            return res.status(401).json({
+                success: false,
+                message: "The password is incorrect"
+            })
+        }
+    
+        // Match new password and confirm new password
+        if(newPassword !== confirmNewPassword){
+            return res.status(400).json({
+                success: false,
+                message: "The password and confirm new pasword does not match"
+            })
+        }
+    
+        // update pwd in db
+        const encryptedPassword = await bcrypt.hash(newPassword, 10)
+        const updatedUserDetails = await User.findOneAndUpdate(
+            req.user.id,
+            {password: encryptedPassword},
+            {new: true}
+        )
+    
+        // send notification mail - password updated
+        try {
+            const emailResponse = await mailSender(
+                updatedUserDetails.email,
+                "Study Notion - Password Updated",
+                passwordUpated(
+                    updatedUserDetails.email,
+                    `Password updated successfully for ${updatedUserDetails.firstName} ${updatedUserDetails.lastName}`
+                )
+            )
+            console.log("Email Sent Successfully: ",emailResponse.response);
+        } 
+        catch (error) {
+            console.error("Error occurred while sending email: ",error)
+            return res.status(500).json({
+                success: false,
+                message: "Error occurred while sending email",
+                error: error.message
+            })
+        }
+    
+        // return success response
+        return res.status(200).json({
+            success: true,
+            message: "Password Updated Successfully"
+        })
+    } 
+    catch (error) {
+        return res.staus(500).json({
+            success: false,
+            message: "Error occurred while updating password",
+            error: error.message
+        })
+    }
 }
