@@ -137,8 +137,9 @@ exports.showlAllCourse = async (req,res)=>{
 // getCourseDetails handler function
 exports.getCourseDetails = async (req,res)=>{
     try {
+        // get id
         const {courseId} = req.body
-        const courseDetails = await  Course.findById({_id: courseId}).populate(
+        const courseDetails = await Course.find({_id: courseId}).populate(
             {
                 path:"instructor",
                 populate: {
@@ -147,36 +148,32 @@ exports.getCourseDetails = async (req,res)=>{
             }
         )
         .populate("category")
-        .populate({
-            path: "ratingAndReviews",
-            populate:{
-                path:"user",
-                select: "firstName lastName accountType image"
-            }
-        })
+        .populate("ratingAndReviews")
         .populate({
             path: "courseContent",
-            populate:{
-                path: "subSection"
+            populate: {
+                path: "subsection",
             }
         }).exec()
 
+        // validation
         if(!courseDetails){
             return res.status(404).json({
                 success: false,
-                message: "Course not found"
+                message: `Course not found with ${courseId}`
             })
         }
 
+        // return response
         return res.status(200).json({
             success: true,
             message: "Course details fetched successfully!",
-            courseDetails
+            data: courseDetails
         })
 
     } catch (error) {
         console.log(error);
-        return res.status(404).json({
+        return res.status(500).json({
             success: false,
             message: "Can't fetched Course data",
             error: error.message
