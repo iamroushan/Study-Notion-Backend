@@ -2,16 +2,28 @@ const Course= require("../models/Course")
 const Category= require("../models/Category")
 const User = require("../models/User")
 const {uploadImageToCloudinary} = require("../utils/imageUploader")
+const Section = require("../models/Section")
+const Subsection = require("../models/SubSection")
+const CourseProgress = require("../models/CourseProgress")
+const mongoose= require("mongoose")
 
 
 // createCourse handler function
 exports.createCourse = async (req,res)=>{
     try {
         // fetch data 
-        const {courseName, courseDescription, whatYouWillLearn, price, tag, category} = req.body
+        const {courseName, courseDescription, whatYouWillLearn, price, tag, category,instructions} = req.body
 
         // Get thumbnail image from request files
-        const thumbnail = req.files.thumbnailImage
+        const thumbnail = req.files.thumbnailImage;
+        console.log('input data : '  , req.body);
+
+         // Convert the tag and instructions from stringified Array to Array
+        // const tag = JSON.parse(_tag)
+        // const instructions = JSON.parse(_instructions)
+
+        // console.log("tag", tag)
+        // console.log("instructions", instructions)
 
         // validation -> Check if any of the required fields are missing
         if(!courseName || !courseDescription || !whatYouWillLearn || !price || !tag || !thumbnail || !category){
@@ -20,7 +32,6 @@ exports.createCourse = async (req,res)=>{
                 message: "All fileds are required"
             })
         }
-
         // Check if the user is an instructor
         const userId = req.user.id
         const instructorDetails = await User.findById(userId,{
@@ -37,7 +48,9 @@ exports.createCourse = async (req,res)=>{
         }
 
         // check given category is valid or not
-        const categoryDetails  = await Category.findById(Category)
+        // console.log('category id ' , Category);
+        // const categoryId = mongoose.Types.ObjectId(Category);
+        const categoryDetails  = await Category.findById(category)
         if(!categoryDetails ){
             return res.status(404).json({
                 success: false,
@@ -55,9 +68,11 @@ exports.createCourse = async (req,res)=>{
             instructor: instructorDetails._id,
             whatYouWillLearn: whatYouWillLearn,
             price,
-            tag: tag,
+            tag,
             category: categoryDetails._id,
-            thumbnail: thumbnailImage.secure_url
+            thumbnail: thumbnailImage.secure_url,
+            status:  "Draft",
+            instructions
         })
 
         // add the new course to the user schema of instructor
@@ -148,11 +163,11 @@ exports.getCourseDetails = async (req,res)=>{
             }
         )
         .populate("category")
-        .populate("ratingAndReviews")
+        //.populate("ratingAndReviews")
         .populate({
             path: "courseContent",
             populate: {
-                path: "subsection",
+                path: "subSection",
             }
         }).exec()
 
@@ -160,7 +175,7 @@ exports.getCourseDetails = async (req,res)=>{
         if(!courseDetails){
             return res.status(404).json({
                 success: false,
-                message: `Course not found with ${courseId}`
+                message: `Course not found with id: ${courseId}`
             })
         }
 

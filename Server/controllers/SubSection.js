@@ -7,14 +7,14 @@ const Course = require("../models/Course")
 exports.createSubSection = async (req,res)=>{
     try {
         // fetch data from Req body
-        const {sectionId, title, timeDuration, description} = req.body
+        const {sectionId, title, timeDuration, description, courseId} = req.body
 
         // extract file/video
         const video = req.files.videoFile
 
         // validation
-        if(!sectionId || !title || !timeDuration || !description){
-            return res.staus(400).json({
+        if(!sectionId || !title || !timeDuration || !description || !video){
+            return res.status(400).json({
                 success: false,
                 message: "All fields are required"
             })
@@ -22,11 +22,12 @@ exports.createSubSection = async (req,res)=>{
 
         // upload video to cloudinary
         const uploadDetails = await uploadImageToCloudinary(video, process.env.FOLDER_NAME)
+        console.log("upload details is: ",uploadDetails);
 
         // create a subsection
         const subSectionDetails = await SubSection.create({
             title: title,
-            timeDuration: timeDuration,
+            //timeDuration: timeDuration,
             description: description,
             videoUrl: uploadDetails.secure_url
         })

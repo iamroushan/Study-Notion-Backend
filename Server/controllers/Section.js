@@ -1,5 +1,6 @@
 const Section = require("../models/Section")
 const Course = require("../models/Course")
+const SubSection = require("../models/SubSection")
 
 // create section handler function
 exports.createSection = async (req,res)=>{
@@ -19,7 +20,7 @@ exports.createSection = async (req,res)=>{
         const newSection = await Section.create({sectionName})
 
         // update course with section objectID
-        const updatedCourseDetails = await Course.findOneAndUpdate(courseId,
+        const updatedCourseDetails = await Course.findByIdAndUpdate(courseId,
             {
                 $push: {
                     courseContent : newSection._id,
@@ -29,7 +30,7 @@ exports.createSection = async (req,res)=>{
             )
             // TODO: use populate to replace sections/subSections both in the updatedCourseDetails
             .populate({
-                path: courseContent,
+                path: "courseContent",
                 populate:{
                     path: "subSection"
                 }
@@ -70,7 +71,8 @@ exports.updatedSection = async (req,res)=>{
         // return response
         return res.status(200).json({
             success: true,
-            message: "Section updated successfully"
+            message: "Section updated successfully",
+            section
         })
 
     } catch (error) {
@@ -86,8 +88,9 @@ exports.updatedSection = async (req,res)=>{
 // delete section handler function
 exports.deleteSection = async (req,res)=>{
     try {
+        // TODO: test with req.params
         // get ID -> assuming that we are sending ID in parameters(params)
-        const {sectionId} = req.params
+        const {sectionId} = req.body
 
         // use findByIdAndDelete
         await Section.findByIdAndDelete(sectionId)

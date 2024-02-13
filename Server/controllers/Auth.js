@@ -5,6 +5,7 @@ const bcrypt= require("bcrypt")
 const jwt = require("jsonwebtoken")
 const mailSender = require("../utils/mailSender")
 require("dotenv").config()
+const Profile = require("../models/Profile")
 
 
 // sentOTP
@@ -101,27 +102,30 @@ exports.signUp= async(req,res)=>{
         }
     
         // check user already exist or not
-        const existingUser= await User.findOne({email})
+        const existingUser= await User.findOne({email:email})
         if(existingUser){
             return res.status(400).json({
                 success: false,
                 message: "User is already registered"
             })
         }
+
+        console.log("the user is : " , existingUser);
     
         // find most recent otp for the user
         const recentOtp= await OTP.find({email}).sort({createdAt: -1}).limit(1)
-        console.log(recentOtp);
+        console.log('the otp : ',otp );
+        console.log('the recent opts : ' , recentOtp , recentOtp[0].otp);
     
         // validate otp
-        if(recentOtp.length == 0){
+        if(recentOtp[0].length == 0){
             // OTP not found
             return res.status(400).json({
                 success: false,
                 message: "OTP not found"
             })
         }
-        else if(otp !== recentOtp.otp){
+        else if(otp !== recentOtp[0].otp){
             // Invalid OTP
             return res.status(400).json({
                 success: false,
@@ -148,7 +152,7 @@ exports.signUp= async(req,res)=>{
             password: hashedPassword,
             accountType,
             additionalDetails: profileDetails._id,
-            image: `https://api.dicebear.com/5.x/initials/svg?seed= ${firstName} ${lastName}`,
+            image: `https://api.dicebear.com/5.x/initials/svg?seed=${firstName} ${lastName}`,
         })
     
         // return res
@@ -178,11 +182,11 @@ exports.login =async (req,res)=>{
             return res.status(403).json({
                 success: false,
                 message: "All fields are required, please try again"
-            })
+            }) 
         }
 
         // check user exist or not
-        const user= await user.findOne({email}).populate("additionalDetails")
+        const user= await User.findOne({email}).populate("additionalDetails")
         if(!user){
             return res.status(401).json({
                 success: false,
@@ -191,16 +195,18 @@ exports.login =async (req,res)=>{
         }
 
         // generate JWT, after password matching
-        if(await bcrypt.compare(password, user.password)){
+        if (await bcrypt.compare(password, user.password)){
 
-            const payload= {
-                email: user.email,
-                id: user._id,
-                accountType: user.accountType
-            }
-            const token = jwt.sign(payload, process.env.JWT_SECRET,{
-                expiresIn: "2h",
-            })
+            const token = jwt.sign(
+                {email: user.email,
+                    id: user._id,
+                    accountType: user.accountType
+                },
+                process.env.JWT_SECRET,
+                {
+                    expiresIn: "24h"
+                }
+            )
             user.token = token
             user.password= undefined
 
@@ -272,7 +278,7 @@ exports.changePassword= async(req,res)=>{
     
         // update pwd in db
         const encryptedPassword = await bcrypt.hash(newPassword, 10)
-        const updatedUserDetails = await User.findOneAndUpdate(
+        const updatedUserDetails = await User.findByIdAndUpdate(
             req.user.id,
             {password: encryptedPassword},
             {new: true}
@@ -306,7 +312,7 @@ exports.changePassword= async(req,res)=>{
         })
     } 
     catch (error) {
-        return res.staus(500).json({
+        return res.status(500).json({
             success: false,
             message: "Error occurred while updating password",
             error: error.message

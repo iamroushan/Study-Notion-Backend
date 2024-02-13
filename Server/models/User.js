@@ -35,7 +35,7 @@ const userSchema= new mongoose.Schema({
         ref: "Course"
     },
     image:{
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         required: true
     },
     token:{
